@@ -87,10 +87,25 @@ export default function Page() {
   // ─────────────────────────────────────
   // Start new conversation (UI only for now)
   // ─────────────────────────────────────
-  function startNewConversation() {
+async function startNewConversation() {
+  try {
+    await fetch("/api/conversations/reset", {
+      method: "POST"
+    });
+
     setMessages([]);
     setActiveId(null);
+
+    // Reload sidebar
+    const res = await fetch("/api/conversations");
+    const data = await res.json();
+    setConversations(data);
+
+  } catch (err) {
+    console.error("Failed to start new conversation", err);
   }
+}
+
 
   // ─────────────────────────────────────
   // Layout
