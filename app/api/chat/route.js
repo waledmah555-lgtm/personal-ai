@@ -21,7 +21,7 @@ export async function POST(req) {
     sessionMemory = sessionMemory.slice(-10);
 
     const response = await client.responses.create({
-model: "gpt-4.1",
+    model: "gpt-4",
       input: [
         { role: "system", content: profile },
         ...sessionMemory
