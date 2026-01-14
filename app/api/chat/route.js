@@ -17,11 +17,14 @@ export async function POST(req) {
       throw new Error("Missing message");
     }
 
+    // ─────────────────────────────────────
     // 1️⃣ Get or create active conversation
+    // ─────────────────────────────────────
     let conversationId = await kv.get("conversation:active");
 
     if (!conversationId) {
       conversationId = crypto.randomUUID();
+
       await kv.set("conversation:active", conversationId);
       await kv.lpush("conversations:list", conversationId);
 
@@ -37,44 +40,65 @@ export async function POST(req) {
     }
 
     let convo = await kv.get(`conversation:${conversationId}`);
+    if (!convo) {
+      throw new Error("Conversation not found in KV");
+    }
 
-    // 2️⃣ Prepare messages for OpenAI
+    // ─────────────────────────────────────
+    // 2️⃣ Build prompt WITH memory replay
+    // ─────────────────────────────────────
+    const history = convo.messages.map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+
     const chatMessages = [
       { role: "system", content: profile },
-      ...convo.messages.map(m => ({
-        role: m.role,
-        content: m.content
-      })),
+      ...history,
       { role: "user", content: message }
     ];
 
+    // ─────────────────────────────────────
     // 3️⃣ Call OpenAI
+    // ─────────────────────────────────────
     const response = await client.responses.create({
-      model: "gpt-4",
+      model: "gpt-4.1",
       input: chatMessages,
       max_output_tokens: 500
     });
 
-    const reply = response.output_text || "No response";
+    const reply = response.output_text || "No response generated.";
 
-    // 4️⃣ Token usage (safe)
+    // ─────────────────────────────────────
+    // 4️⃣ Token usage (safe extraction)
+    // ─────────────────────────────────────
     const usage = response.usage || {};
     const inputTokens = usage.input_tokens || 0;
     const outputTokens = usage.output_tokens || 0;
     const totalTokens = inputTokens + outputTokens;
 
-    // 5️⃣ Store messages
+    // ─────────────────────────────────────
+    // 5️⃣ Persist messages
+    // ─────────────────────────────────────
     convo.messages.push(
       {
         role: "user",
         content: message,
-        tokens: { input: inputTokens, output: 0, total: inputTokens },
+        tokens: {
+          input: inputTokens,
+          output: 0,
+          total: inputTokens
+        },
         timestamp: now()
       },
       {
         role: "assistant",
         content: reply,
-        tokens: { input: 0, output: outputTokens, total: outputTokens },
+        tokens: {
+          input: 0,
+          output: outputTokens,
+          total: outputTokens
+        },
         timestamp: now()
       }
     );
@@ -86,7 +110,9 @@ export async function POST(req) {
 
     await kv.set(`conversation:${conversationId}`, convo);
 
-    // 6️⃣ Respond to frontend (same shape as before)
+    // ─────────────────────────────────────
+    // 6️⃣ Respond to frontend
+    // ─────────────────────────────────────
     return new Response(
       JSON.stringify({
         reply,
@@ -98,6 +124,7 @@ export async function POST(req) {
 
   } catch (err) {
     console.error("CHAT ERROR:", err);
+
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500 }
