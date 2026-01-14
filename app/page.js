@@ -1,63 +1,72 @@
 "use client";
-import { useState } from "react";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import Sidebar from "./components/Sidebar";
+import ChatWindow from "./components/ChatWindow";
+
+export default function Page() {
+  const [conversations, setConversations] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [prompt, setPrompt] = useState("");
-  const [reply, setReply] = useState("");
-  const [loading, setLoading] = useState(false);
 
-async function send() {
-  setLoading(true);
-  setReply("Thinking...");
-
-  try {
+  async function send() {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: prompt })
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text);
-    }
-
     const data = await res.json();
-    setReply(data.reply || "No reply returned");
+    setMessages(prev => [
+      ...prev,
+      { role: "user", content: prompt },
+      { role: "assistant", content: data.reply }
+    ]);
 
-  } catch (err) {
-    console.error(err);
-    setReply("ERROR: " + err.message);
+    setPrompt("");
   }
 
-  setLoading(false);
-}
+  function optimize() {
+    setPrompt(
+      "Rewrite this prompt to be clearer and more structured:\n\n" + prompt
+    );
+  }
 
   return (
-    <main style={{ padding: 20, fontFamily: "Arial" }}>
-      <h2>My Personal AI</h2>
-
-      <textarea
-        value={prompt}
-        onChange={e => setPrompt(e.target.value)}
-        placeholder="Ask anything..."
-        style={{ width: "100%", height: 120 }}
+    <main style={{
+      display: "flex",
+      height: "100vh",
+      fontFamily: "Inter, system-ui"
+    }}>
+      <Sidebar
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onNew={() => {
+          setMessages([]);
+          setActiveId(null);
+        }}
       />
 
-      <br /><br />
+      <ChatWindow
+        messages={messages}
+        prompt={prompt}
+        setPrompt={setPrompt}
+        onSend={send}
+        onOptimize={optimize}
+      />
 
-      <button onClick={send} disabled={loading}>
-        Send
-      </button>
-
-      <pre style={{
-        marginTop: 20,
-        background: "#111",
-        color: "#eee",
-        padding: 15
+      {/* Right panel placeholder */}
+      <aside style={{
+        width: 260,
+        background: "#020617",
+        borderLeft: "1px solid #1e293b",
+        padding: 16,
+        color: "#64748b"
       }}>
-        {reply}
-      </pre>
+        Tokens & Cost (Phase 3)
+      </aside>
     </main>
   );
 }
