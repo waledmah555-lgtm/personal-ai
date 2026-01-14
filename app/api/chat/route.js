@@ -6,62 +6,98 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+function now() {
+  return new Date().toISOString();
+}
+
 export async function POST(req) {
   try {
     const { message } = await req.json();
-
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("Missing OPENAI_API_KEY");
+    if (!message) {
+      throw new Error("Missing message");
     }
 
-    const sessionKey = "session:default";
-    let sessionMemory = (await kv.get(sessionKey)) || [];
+    // 1️⃣ Get or create active conversation
+    let conversationId = await kv.get("conversation:active");
 
-    sessionMemory.push({ role: "user", content: message });
-    sessionMemory = sessionMemory.slice(-10);
+    if (!conversationId) {
+      conversationId = crypto.randomUUID();
+      await kv.set("conversation:active", conversationId);
+      await kv.lpush("conversations:list", conversationId);
 
+      await kv.set(`conversation:${conversationId}`, {
+        id: conversationId,
+        title: message.slice(0, 40),
+        model: "gpt-4.1",
+        messages: [],
+        totals: { input: 0, output: 0, total: 0 },
+        createdAt: now(),
+        updatedAt: now()
+      });
+    }
+
+    let convo = await kv.get(`conversation:${conversationId}`);
+
+    // 2️⃣ Prepare messages for OpenAI
+    const chatMessages = [
+      { role: "system", content: profile },
+      ...convo.messages.map(m => ({
+        role: m.role,
+        content: m.content
+      })),
+      { role: "user", content: message }
+    ];
+
+    // 3️⃣ Call OpenAI
     const response = await client.responses.create({
-    model: "gpt-4",
-      input: [
-        { role: "system", content: profile },
-        ...sessionMemory
-      ],
+      model: "gpt-4",
+      input: chatMessages,
       max_output_tokens: 500
     });
 
-    let reply = "";
+    const reply = response.output_text || "No response";
 
-    if (response.output_text) {
-      reply = response.output_text;
-    } else if (Array.isArray(response.output)) {
-      for (const item of response.output) {
-        if (item.content) {
-          for (const part of item.content) {
-            if (part.type === "output_text" && part.text) {
-              reply += part.text;
-            }
-          }
-        }
+    // 4️⃣ Token usage (safe)
+    const usage = response.usage || {};
+    const inputTokens = usage.input_tokens || 0;
+    const outputTokens = usage.output_tokens || 0;
+    const totalTokens = inputTokens + outputTokens;
+
+    // 5️⃣ Store messages
+    convo.messages.push(
+      {
+        role: "user",
+        content: message,
+        tokens: { input: inputTokens, output: 0, total: inputTokens },
+        timestamp: now()
+      },
+      {
+        role: "assistant",
+        content: reply,
+        tokens: { input: 0, output: outputTokens, total: outputTokens },
+        timestamp: now()
       }
-    }
+    );
 
-    if (!reply) {
-      reply = "OpenAI returned an empty response.";
-    }
+    convo.totals.input += inputTokens;
+    convo.totals.output += outputTokens;
+    convo.totals.total += totalTokens;
+    convo.updatedAt = now();
 
-    sessionMemory.push({ role: "assistant", content: reply });
-    sessionMemory = sessionMemory.slice(-10);
+    await kv.set(`conversation:${conversationId}`, convo);
 
-    await kv.set(sessionKey, sessionMemory);
-
+    // 6️⃣ Respond to frontend (same shape as before)
     return new Response(
-      JSON.stringify({ reply }),
+      JSON.stringify({
+        reply,
+        tokens: convo.totals,
+        conversationId
+      }),
       { headers: { "Content-Type": "application/json" } }
     );
 
   } catch (err) {
-    console.error("API ERROR:", err);
-
+    console.error("CHAT ERROR:", err);
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500 }
