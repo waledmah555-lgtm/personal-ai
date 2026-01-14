@@ -44,7 +44,7 @@ export default function Sidebar({
           }}
         >
           <div style={{ fontSize: 14, fontWeight: 500 }}>
-            {c.title || "Untitled"}
+{c.title?.trim() || "New Conversation"}
           </div>
         </div>
       ))}
