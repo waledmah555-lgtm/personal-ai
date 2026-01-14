@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { kv } from "@vercel/kv";
-import { profile } from "@/lib/profile";
+import { profile } from "../../../lib/profile";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
