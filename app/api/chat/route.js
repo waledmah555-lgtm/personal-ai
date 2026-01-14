@@ -103,6 +103,18 @@ export async function POST(req) {
       }
     );
 
+    // Auto-generate title from first user message
+if (!convo.title || convo.title === "New Conversation") {
+  const firstUserMessage = convo.messages.find(
+    m => m.role === "user"
+  );
+
+  if (firstUserMessage) {
+    convo.title = firstUserMessage.content.slice(0, 40);
+  }
+}
+
+
     convo.totals.input += inputTokens;
     convo.totals.output += outputTokens;
     convo.totals.total += totalTokens;
