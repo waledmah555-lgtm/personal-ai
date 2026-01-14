@@ -10,16 +10,14 @@ export async function POST(req) {
   try {
     const { message } = await req.json();
 
-    // Session ID (single-user personal tool)
-    const sessionKey = "session:default";
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("Missing OPENAI_API_KEY");
+    }
 
-    // Get last messages (session memory)
+    const sessionKey = "session:default";
     let sessionMemory = (await kv.get(sessionKey)) || [];
 
-    // Add user message
     sessionMemory.push({ role: "user", content: message });
-
-    // Keep last 10 messages
     sessionMemory = sessionMemory.slice(-10);
 
     const response = await client.responses.create({
@@ -31,23 +29,27 @@ export async function POST(req) {
       max_output_tokens: 500
     });
 
-    const reply = response.output_text;
+    const reply =
+      response.output?.[0]?.content?.[0]?.text ||
+      "No response generated";
 
-    // Add assistant reply
     sessionMemory.push({ role: "assistant", content: reply });
     sessionMemory = sessionMemory.slice(-10);
 
-    // Save memory
     await kv.set(sessionKey, sessionMemory);
 
-    return new Response(JSON.stringify({ reply }), {
-      headers: { "Content-Type": "application/json" }
-    });
+    console.log("OpenAI response received");
+
+    return new Response(
+      JSON.stringify({ reply }),
+      { headers: { "Content-Type": "application/json" } }
+    );
 
   } catch (err) {
-    console.error(err);
+    console.error("API ERROR:", err);
+
     return new Response(
-      JSON.stringify({ error: "AI error" }),
+      JSON.stringify({ error: err.message }),
       { status: 500 }
     );
   }
