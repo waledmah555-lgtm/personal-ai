@@ -29,33 +29,30 @@ export async function POST(req) {
       max_output_tokens: 500
     });
 
-   let reply = "";
+    let reply = "";
 
-if (response.output_text) {
-  reply = response.output_text;
-} else if (Array.isArray(response.output)) {
-  for (const item of response.output) {
-    if (item.content) {
-      for (const part of item.content) {
-        if (part.type === "output_text" && part.text) {
-          reply += part.text;
+    if (response.output_text) {
+      reply = response.output_text;
+    } else if (Array.isArray(response.output)) {
+      for (const item of response.output) {
+        if (item.content) {
+          for (const part of item.content) {
+            if (part.type === "output_text" && part.text) {
+              reply += part.text;
+            }
+          }
         }
       }
     }
-  }
-}
 
-if (!reply) {
-  reply = "OpenAI returned an empty response.";
-}
-
+    if (!reply) {
+      reply = "OpenAI returned an empty response.";
+    }
 
     sessionMemory.push({ role: "assistant", content: reply });
     sessionMemory = sessionMemory.slice(-10);
 
     await kv.set(sessionKey, sessionMemory);
-
-    console.log("OpenAI response received");
 
     return new Response(
       JSON.stringify({ reply }),
