@@ -6,20 +6,32 @@ export default function Home() {
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function send() {
-    setLoading(true);
-    setReply("Thinking...");
+async function send() {
+  setLoading(true);
+  setReply("Thinking...");
 
+  try {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: prompt })
     });
 
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text);
+    }
+
     const data = await res.json();
-    setReply(data.reply);
-    setLoading(false);
+    setReply(data.reply || "No reply returned");
+
+  } catch (err) {
+    console.error(err);
+    setReply("ERROR: " + err.message);
   }
+
+  setLoading(false);
+}
 
   return (
     <main style={{ padding: 20, fontFamily: "Arial" }}>
