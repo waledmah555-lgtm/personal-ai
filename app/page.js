@@ -69,30 +69,54 @@ export default function Page() {
     loadConversationList();
   }
 
-  async function renameConversation(convo) {
-    const title = prompt("New title:", convo.title);
-    if (!title) return;
+ async function renameConversation(convo) {
+  const title = prompt("New title:", convo.title);
+  if (!title) return;
 
+  // 1️⃣ Optimistic UI update
+  setConversations(prev =>
+    prev.map(c =>
+      c.id === convo.id ? { ...c, title } : c
+    )
+  );
+
+  // 2️⃣ Backend update
+  try {
     await fetch(`/api/conversations/${convo.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title })
     });
-
-    loadConversationList();
+  } catch (err) {
+    console.error("Rename failed", err);
   }
 
-  async function deleteConversation(id) {
+  // 3️⃣ Re-sync
+  refreshConversations();
+}
+
+
+async function deleteConversation(id) {
+  // 1️⃣ Optimistically update UI immediately
+  setConversations(prev => prev.filter(c => c.id !== id));
+
+  if (id === activeId) {
+    setMessages([]);
+    setTokens({ total: 0 });
+    setActiveId(null);
+  }
+
+  // 2️⃣ Fire-and-forget backend delete
+  try {
     await fetch(`/api/conversations/${id}`, { method: "DELETE" });
-
-    if (id === activeId) {
-      setMessages([]);
-      setTokens({ total: 0 });
-      setActiveId(null);
-    }
-
-    loadConversationList();
+  } catch (err) {
+    console.error("Delete failed", err);
   }
+
+  // 3️⃣ Re-sync silently (safety)
+  refreshConversations();
+}
+
 
   function optimize() {
     setPrompt(`Rewrite this prompt to be clearer:\n\n${prompt}`);
