@@ -26,8 +26,11 @@ export default function Page() {
     const convo = await res.json();
 
     setActiveId(id);
-    setMessages(convo.messages.map(m => ({ role: m.role, content: m.content })));
-    setTokens(convo.totals);
+    setMessages(convo.messages.map(m => ({
+      role: m.role,
+      content: m.content
+    })));
+    setTokens(convo.totals || { total: 0 });
   }
 
   async function send() {
@@ -44,8 +47,9 @@ export default function Page() {
     });
 
     const data = await res.json();
+
     setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
-    setTokens(data.tokens);
+    setTokens(data.tokens || { total: 0 });
 
     if (!activeId) setActiveId(data.conversationId);
     refreshConversations();
@@ -74,11 +78,13 @@ export default function Page() {
 
   async function deleteConversation(id) {
     await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+
     if (id === activeId) {
       setMessages([]);
       setTokens({ total: 0 });
       setActiveId(null);
     }
+
     refreshConversations();
   }
 
