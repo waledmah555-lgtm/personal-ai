@@ -129,7 +129,7 @@ async function startNewConversation() {
       <Sidebar
         conversations={conversations}
         activeId={activeId}
-        onSelect={setActiveId}
+        onSelect={loadConversation}
         onNew={startNewConversation}
       />
 
