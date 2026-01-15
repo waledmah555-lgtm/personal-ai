@@ -12,39 +12,34 @@ export default function Page() {
   const [prompt, setPrompt] = useState("");
   const [tokens, setTokens] = useState({ total: 0 });
 
-  // Load sidebar conversations
-  useEffect(() => {
-    loadConversationList();
-  }, []);
-
-  async function loadConversationList() {
-    const res = await fetch("/api/conversations");
+  // 🔹 ONLY way sidebar data is loaded
+  async function refreshConversations() {
+    const res = await fetch("/api/conversations", { cache: "no-store" });
     const data = await res.json();
     setConversations(data);
   }
 
-  // ✅ THIS FUNCTION EXISTS AND IS IN SCOPE
+  // Load sidebar on first load
+  useEffect(() => {
+    refreshConversations();
+  }, []);
+
+  // Load messages for selected conversation
   async function loadConversation(id) {
-    const res = await fetch(`/api/conversations/${id}`);
+    const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
     const convo = await res.json();
 
     setActiveId(id);
-    setMessages(
-      (convo.messages || []).map(m => ({
-        role: m.role,
-        content: m.content
-      }))
-    );
+    setMessages(convo.messages || []);
     setTokens(convo.totals || { total: 0 });
   }
 
+  // Send message
   async function send() {
     if (!prompt.trim()) return;
 
     const userMsg = prompt;
     setPrompt("");
-
-    setMessages(prev => [...prev, { role: "user", content: userMsg }]);
 
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -54,63 +49,50 @@ export default function Page() {
 
     const data = await res.json();
 
-    setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+    setActiveId(data.conversationId);
+    setMessages(data.messages || []);
     setTokens(data.tokens || { total: 0 });
 
-    if (!activeId) setActiveId(data.conversationId);
-    loadConversationList();
+    await refreshConversations();
   }
 
-async function startNewConversation() {
-  // Create conversation immediately
-  const res = await fetch("/api/conversations/new", {
-    method: "POST"
-  });
+  // ✅ CREATE conversation ONLY via backend
+  async function startNewConversation() {
+    await fetch("/api/conversations/new", { method: "POST" });
 
-  const convo = await res.json();
+    setMessages([]);
+    setTokens({ total: 0 });
+    setActiveId(null);
 
-  // Update UI instantly
+    await refreshConversations();
+  }
 
+  // Rename (backend truth only)
+  async function renameConversation(convo) {
+    const title = prompt("New title:", convo.title);
+    if (!title) return;
 
-
- async function renameConversation(convo) {
-  const title = prompt("New title:", convo.title);
-  if (!title) return;
-
-  // 1️⃣ Optimistic UI update
- 
-
-  // 2️⃣ Backend update
-  try {
     await fetch(`/api/conversations/${convo.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title })
     });
-  } catch (err) {
-    console.error("Rename failed", err);
+
+    await refreshConversations();
   }
 
-  // 3️⃣ Re-sync
-  refreshConversations();
-}
-
-
-async function deleteConversation(id) {
-  // 1️⃣ Optimistically update UI immediately
- 
-
-  // 2️⃣ Fire-and-forget backend delete
-  try {
+  // Delete (backend truth only)
+  async function deleteConversation(id) {
     await fetch(`/api/conversations/${id}`, { method: "DELETE" });
-  } catch (err) {
-    console.error("Delete failed", err);
+
+    if (id === activeId) {
+      setMessages([]);
+      setTokens({ total: 0 });
+      setActiveId(null);
+    }
+
+    await refreshConversations();
   }
-
-  // 3️⃣ Re-sync silently (safety)
-  refreshConversations();
-}
-
 
   function optimize() {
     setPrompt(`Rewrite this prompt to be clearer:\n\n${prompt}`);
