@@ -20,7 +20,7 @@ export default function Sidebar({
         onClick={onNew}
         style={{
           width: "100%",
-          padding: "10px",
+          padding: 10,
           marginBottom: 16,
           background: "#2563eb",
           border: "none",
@@ -46,7 +46,7 @@ export default function Sidebar({
             onClick={() => onSelect(c.id)}
             style={{ cursor: "pointer", fontSize: 14 }}
           >
-            {c.title || "New Conversation"}
+            {c.title || "New conversation"}
           </div>
 
           <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
