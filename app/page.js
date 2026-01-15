@@ -70,11 +70,7 @@ async function startNewConversation() {
   const convo = await res.json();
 
   // Update UI instantly
-  setConversations(prev => [convo, ...prev]);
-  setActiveId(convo.id);
-  setMessages([]);
-  setTokens({ total: 0 });
-}
+
 
 
  async function renameConversation(convo) {
@@ -82,11 +78,7 @@ async function startNewConversation() {
   if (!title) return;
 
   // 1️⃣ Optimistic UI update
-  setConversations(prev =>
-    prev.map(c =>
-      c.id === convo.id ? { ...c, title } : c
-    )
-  );
+ 
 
   // 2️⃣ Backend update
   try {
@@ -106,13 +98,7 @@ async function startNewConversation() {
 
 async function deleteConversation(id) {
   // 1️⃣ Optimistically update UI immediately
-  setConversations(prev => prev.filter(c => c.id !== id));
-
-  if (id === activeId) {
-    setMessages([]);
-    setTokens({ total: 0 });
-    setActiveId(null);
-  }
+ 
 
   // 2️⃣ Fire-and-forget backend delete
   try {
