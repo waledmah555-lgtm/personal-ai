@@ -2,7 +2,13 @@ import { kv } from "@vercel/kv";
 
 export async function GET() {
   try {
-    const ids = await kv.lrange("conversations:list", 0, -1) || [];
+    const ids = await kv.lrange("conversations:list", 0, -1);
+
+    if (!ids || ids.length === 0) {
+      return new Response(JSON.stringify([]), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
     const conversations = [];
 
@@ -11,13 +17,12 @@ export async function GET() {
       if (convo) {
         conversations.push({
           id: convo.id,
-          title: convo.title,
+          title: convo.title || "New Conversation",
           updatedAt: convo.updatedAt
         });
       }
     }
 
-    // Most recent first
     conversations.sort(
       (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
     );
