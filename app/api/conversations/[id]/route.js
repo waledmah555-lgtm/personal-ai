@@ -12,14 +12,14 @@ export async function GET(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
-  const { title } = await req.json();
+  const body = await req.json();
   const convo = await kv.get(`conversation:${params.id}`);
 
   if (!convo) {
     return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
   }
 
-  convo.title = title || convo.title;
+  convo.title = body.title;
   convo.updatedAt = new Date().toISOString();
 
   await kv.set(`conversation:${params.id}`, convo);
@@ -33,11 +33,11 @@ export async function DELETE(req, { params }) {
   await kv.del(`conversation:${params.id}`);
 
   const ids = await kv.lrange("conversations:list", 0, -1);
-  const updated = ids.filter(id => id !== params.id);
-  await kv.del("conversations:list");
+  const remaining = ids.filter(id => id !== params.id);
 
-  if (updated.length) {
-    await kv.lpush("conversations:list", ...updated);
+  await kv.del("conversations:list");
+  if (remaining.length > 0) {
+    await kv.lpush("conversations:list", ...remaining);
   }
 
   return new Response(JSON.stringify({ status: "deleted" }), {
