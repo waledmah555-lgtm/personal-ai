@@ -3,7 +3,10 @@ import { kv } from "@vercel/kv";
 export async function GET(req, { params }) {
   const convo = await kv.get(`conversation:${params.id}`);
   if (!convo) {
-    return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   return new Response(JSON.stringify(convo), {
@@ -12,14 +15,14 @@ export async function GET(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
-  const body = await req.json();
+  const { title } = await req.json();
   const convo = await kv.get(`conversation:${params.id}`);
 
   if (!convo) {
     return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
   }
 
-  convo.title = body.title;
+  convo.title = title;
   convo.updatedAt = new Date().toISOString();
 
   await kv.set(`conversation:${params.id}`, convo);
@@ -33,10 +36,10 @@ export async function DELETE(req, { params }) {
   await kv.del(`conversation:${params.id}`);
 
   const ids = await kv.lrange("conversations:list", 0, -1);
-  const remaining = ids.filter(id => id !== params.id);
+  const remaining = ids.filter(i => i !== params.id);
 
   await kv.del("conversations:list");
-  if (remaining.length > 0) {
+  if (remaining.length) {
     await kv.lpush("conversations:list", ...remaining);
   }
 
