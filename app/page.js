@@ -18,15 +18,21 @@ export default function Page() {
   // Load conversation list on page load
   // ─────────────────────────────────────
   useEffect(() => {
-    async function loadConversations() {
-      try {
-        const res = await fetch("/api/conversations");
-        const data = await res.json();
-        setConversations(data);
-      } catch (err) {
-        console.error("Failed to load conversations", err);
-      }
-    }
+   async function loadConversation(id) {
+  try {
+    const res = await fetch(`/api/conversations/${id}`);
+    const convo = await res.json();
+
+    setActiveId(id);
+    setMessages(convo.messages.map(m => ({
+      role: m.role,
+      content: m.content
+    })));
+  } catch (err) {
+    console.error("Failed to load conversation", err);
+  }
+}
+
 
     loadConversations();
   }, []);
