@@ -1,6 +1,13 @@
 "use client";
 
-export default function Sidebar({ conversations, activeId, onSelect, onNew, onRename, onDelete }) {
+export default function Sidebar({
+  conversations,
+  activeId,
+  onSelect,
+  onNew,
+  onRename,
+  onDelete
+}) {
   return (
     <aside style={{
       width: 260,
@@ -43,8 +50,25 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onRe
           </div>
 
           <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
-            <button onClick={() => onRename(c)} style={{ fontSize: 11 }}>Rename</button>
-            <button onClick={() => onDelete(c.id)} style={{ fontSize: 11, color: "#f87171" }}>Delete</button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRename(c);
+              }}
+              style={{ fontSize: 11 }}
+            >
+              Rename
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(c.id);
+              }}
+              style={{ fontSize: 11, color: "#f87171" }}
+            >
+              Delete
+            </button>
           </div>
         </div>
       ))}
