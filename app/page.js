@@ -12,38 +12,44 @@ export default function Page() {
   const [prompt, setPrompt] = useState("");
   const [tokens, setTokens] = useState({ total: 0 });
 
+  // Load sidebar conversations
   useEffect(() => {
-    refreshConversations();
+    loadConversationList();
   }, []);
 
-  async function refreshConversations() {
+  async function loadConversationList() {
     const res = await fetch("/api/conversations");
-    setConversations(await res.json());
+    const data = await res.json();
+    setConversations(data);
   }
 
+  // ✅ THIS FUNCTION EXISTS AND IS IN SCOPE
   async function loadConversation(id) {
     const res = await fetch(`/api/conversations/${id}`);
     const convo = await res.json();
 
     setActiveId(id);
-    setMessages(convo.messages.map(m => ({
-      role: m.role,
-      content: m.content
-    })));
+    setMessages(
+      (convo.messages || []).map(m => ({
+        role: m.role,
+        content: m.content
+      }))
+    );
     setTokens(convo.totals || { total: 0 });
   }
 
   async function send() {
     if (!prompt.trim()) return;
-    const msg = prompt;
+
+    const userMsg = prompt;
     setPrompt("");
 
-    setMessages(prev => [...prev, { role: "user", content: msg }]);
+    setMessages(prev => [...prev, { role: "user", content: userMsg }]);
 
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: msg })
+      body: JSON.stringify({ message: userMsg })
     });
 
     const data = await res.json();
@@ -52,7 +58,7 @@ export default function Page() {
     setTokens(data.tokens || { total: 0 });
 
     if (!activeId) setActiveId(data.conversationId);
-    refreshConversations();
+    loadConversationList();
   }
 
   async function startNewConversation() {
@@ -60,7 +66,7 @@ export default function Page() {
     setMessages([]);
     setTokens({ total: 0 });
     setActiveId(null);
-    refreshConversations();
+    loadConversationList();
   }
 
   async function renameConversation(convo) {
@@ -73,7 +79,7 @@ export default function Page() {
       body: JSON.stringify({ title })
     });
 
-    refreshConversations();
+    loadConversationList();
   }
 
   async function deleteConversation(id) {
@@ -85,11 +91,11 @@ export default function Page() {
       setActiveId(null);
     }
 
-    refreshConversations();
+    loadConversationList();
   }
 
   function optimize() {
-    setPrompt(`Rewrite this prompt to be clearer and cheaper:\n\n${prompt}`);
+    setPrompt(`Rewrite this prompt to be clearer:\n\n${prompt}`);
   }
 
   return (
