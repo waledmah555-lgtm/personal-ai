@@ -61,13 +61,21 @@ export default function Page() {
     loadConversationList();
   }
 
-  async function startNewConversation() {
-    await fetch("/api/conversations/reset", { method: "POST" });
-    setMessages([]);
-    setTokens({ total: 0 });
-    setActiveId(null);
-    loadConversationList();
-  }
+async function startNewConversation() {
+  // Create conversation immediately
+  const res = await fetch("/api/conversations/new", {
+    method: "POST"
+  });
+
+  const convo = await res.json();
+
+  // Update UI instantly
+  setConversations(prev => [convo, ...prev]);
+  setActiveId(convo.id);
+  setMessages([]);
+  setTokens({ total: 0 });
+}
+
 
  async function renameConversation(convo) {
   const title = prompt("New title:", convo.title);
