@@ -17,7 +17,7 @@ export async function POST() {
   await kv.lpush("conversations:list", id);
   await kv.set("conversation:active", id);
 
-  return new Response(JSON.stringify(convo), {
+  return new Response(JSON.stringify({ status: "ok" }), {
     headers: { "Content-Type": "application/json" }
   });
 }
