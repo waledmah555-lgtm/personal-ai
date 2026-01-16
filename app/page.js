@@ -85,8 +85,9 @@ async function deleteConversation(id) {
   }
 
   await refreshConversations();
-}
   alert("Conversation deleted");
+}
+  
 
 
 
