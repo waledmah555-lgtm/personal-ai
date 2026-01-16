@@ -75,17 +75,18 @@ export default function Page() {
     await refreshConversations();
   }
 
-  async function deleteConversation(id) {
-    await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+async function deleteConversation(id) {
+  await fetch(`/api/conversations/${id}`, { method: "DELETE" });
 
-    if (id === activeId) {
-      setMessages([]);
-      setTokens({ total: 0 });
-      setActiveId(null);
-    }
-
-    await refreshConversations();
+  if (id === activeId) {
+    setMessages([]);
+    setTokens({ total: 0 });
+    setActiveId(null);
   }
+
+  await refreshConversations();
+}
+
 
   function optimize() {
     setPrompt(`Rewrite this prompt to be clearer:\n\n${prompt}`);
