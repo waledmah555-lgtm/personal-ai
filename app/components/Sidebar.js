@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 
 export default function Sidebar({
   conversations,
@@ -8,6 +9,9 @@ export default function Sidebar({
   onRename,
   onDelete
 }) {
+  const [editingId, setEditingId] = useState(null);
+  const [title, setTitle] = useState("");
+
   return (
     <aside style={{
       width: 260,
@@ -42,18 +46,45 @@ export default function Sidebar({
             background: c.id === activeId ? "#1e293b" : "transparent"
           }}
         >
-          <div
-            onClick={() => onSelect(c.id)}
-            style={{ cursor: "pointer", fontSize: 14 }}
-          >
-            {c.title || "New conversation"}
-          </div>
+          {editingId === c.id ? (
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => {
+                onRename({ ...c, title });
+                setEditingId(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onRename({ ...c, title });
+                  setEditingId(null);
+                }
+              }}
+              style={{
+                width: "100%",
+                background: "#020617",
+                color: "#e5e7eb",
+                border: "1px solid #334155",
+                borderRadius: 4,
+                padding: 4
+              }}
+            />
+          ) : (
+            <div
+              onClick={() => onSelect(c.id)}
+              style={{ cursor: "pointer", fontSize: 14 }}
+            >
+              {c.title || "New conversation"}
+            </div>
+          )}
 
           <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onRename(c);
+                setEditingId(c.id);
+                setTitle(c.title || "");
               }}
               style={{ fontSize: 11 }}
             >
