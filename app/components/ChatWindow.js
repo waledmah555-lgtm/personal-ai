@@ -12,82 +12,69 @@ export default function ChatWindow({
       flex: 1,
       display: "flex",
       flexDirection: "column",
-      background: "#020617"
+      padding: 20,
+      color: "#e5e7eb"
     }}>
+      {/* Chat messages */}
       <div style={{
         flex: 1,
-        padding: 24,
-        overflowY: "auto"
+        overflowY: "auto",
+        marginBottom: 12
       }}>
+        {messages.length === 0 && (
+          <div style={{ opacity: 0.5 }}>
+            Start a conversation…
+          </div>
+        )}
+
         {messages.map((m, i) => (
           <div
             key={i}
             style={{
-              marginBottom: 16,
-              color: m.role === "user" ? "#e5e7eb" : "#93c5fd"
+              marginBottom: 12,
+              whiteSpace: "pre-wrap"
             }}
           >
-            <strong>
-              {m.role === "user" ? "You" : "AI"}
-            </strong>
-            <div style={{ marginTop: 4 }}>
-              {m.content}
-            </div>
+            <strong>{m.role === "user" ? "You" : "AI"}:</strong>
+            <div>{m.content}</div>
           </div>
         ))}
       </div>
 
-      <div style={{
-        padding: 16,
-        borderTop: "1px solid #1e293b"
-      }}>
-        <textarea
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          placeholder="Ask anything…"
+      {/* Input */}
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="Ask anything..."
+        rows={3}
+        style={{
+          width: "100%",
+          padding: 10,
+          marginBottom: 8,
+          borderRadius: 6,
+          border: "1px solid #1e293b",
+          background: "#020617",
+          color: "#e5e7eb"
+        }}
+      />
+
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <button onClick={onOptimize} style={{ fontSize: 12 }}>
+          ✨ Optimize prompt
+        </button>
+
+        <button
+          onClick={onSend}
           style={{
-            width: "100%",
-            height: 90,
-            background: "#020617",
-            color: "#e5e7eb",
-            border: "1px solid #1e293b",
-            borderRadius: 8,
-            padding: 12,
-            resize: "none"
+            padding: "6px 14px",
+            background: "#2563eb",
+            border: "none",
+            color: "#fff",
+            borderRadius: 6
           }}
-        />
-
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginTop: 8
-        }}>
-          <button
-            onClick={onOptimize}
-            style={{
-              background: "transparent",
-              color: "#93c5fd",
-              border: "none",
-              cursor: "pointer"
-            }}
-          >
-            ✨ Optimize prompt
-          </button>
-
-          <button
-            onClick={onSend}
-            style={{
-              background: "#2563eb",
-              color: "#fff",
-              border: "none",
-              padding: "8px 16px",
-              borderRadius: 6,
-              cursor: "pointer"
-            }}
-          >
-            Send
-          </button>
-        </div>
+        >
+          Send
+        </button>
       </div>
     </section>
   );
