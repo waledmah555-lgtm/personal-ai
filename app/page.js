@@ -12,19 +12,15 @@ export default function Page() {
   const [prompt, setPrompt] = useState("");
   const [tokens, setTokens] = useState({ total: 0 });
 
-  // 🔹 ONLY way sidebar data is loaded
   async function refreshConversations() {
     const res = await fetch("/api/conversations", { cache: "no-store" });
-    const data = await res.json();
-    setConversations(data);
+    setConversations(await res.json());
   }
 
-  // Load sidebar on first load
   useEffect(() => {
     refreshConversations();
   }, []);
 
-  // Load messages for selected conversation
   async function loadConversation(id) {
     const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
     const convo = await res.json();
@@ -34,21 +30,21 @@ export default function Page() {
     setTokens(convo.totals || { total: 0 });
   }
 
-  // Send message
   async function send() {
     if (!prompt.trim()) return;
 
-    const userMsg = prompt;
+    const msg = prompt;
     setPrompt("");
 
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMsg })
+      body: JSON.stringify({ message: msg })
     });
 
     const data = await res.json();
 
+    // ✅ DO NOT CLEAR — REPLACE WITH BACKEND STATE
     setActiveId(data.conversationId);
     setMessages(data.messages || []);
     setTokens(data.tokens || { total: 0 });
@@ -56,7 +52,6 @@ export default function Page() {
     await refreshConversations();
   }
 
-  // ✅ CREATE conversation ONLY via backend
   async function startNewConversation() {
     await fetch("/api/conversations/new", { method: "POST" });
 
@@ -67,7 +62,6 @@ export default function Page() {
     await refreshConversations();
   }
 
-  // Rename (backend truth only)
   async function renameConversation(convo) {
     const title = prompt("New title:", convo.title);
     if (!title) return;
@@ -81,7 +75,6 @@ export default function Page() {
     await refreshConversations();
   }
 
-  // Delete (backend truth only)
   async function deleteConversation(id) {
     await fetch(`/api/conversations/${id}`, { method: "DELETE" });
 
