@@ -1,25 +1,23 @@
 import OpenAI from "openai";
 import { kv } from "@vercel/kv";
-import { profile } from "../../../lib/profile";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-function now() {
-  return new Date().toISOString();
-}
-
 export async function POST(req) {
   try {
     const { message } = await req.json();
     if (!message) {
-      throw new Error("Missing message");
+      return new Response(
+        JSON.stringify({ error: "Missing message" }),
+        { status: 400 }
+      );
     }
 
-    // ─────────────────────────────────────
-    // 1️⃣ Get or create active conversation
-    // ─────────────────────────────────────
+    // ─────────────────────────────
+    // Get or create active conversation
+    // ─────────────────────────────
     let conversationId = await kv.get("conversation:active");
 
     if (!conversationId) {
@@ -31,36 +29,28 @@ export async function POST(req) {
       await kv.set(`conversation:${conversationId}`, {
         id: conversationId,
         title: message.slice(0, 40),
-        model: "gpt-4.1",
         messages: [],
         totals: { input: 0, output: 0, total: 0 },
-        createdAt: now(),
-        updatedAt: now()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
-    let convo = await kv.get(`conversation:${conversationId}`);
-    if (!convo) {
-      throw new Error("Conversation not found in KV");
-    }
+    const convo = await kv.get(`conversation:${conversationId}`);
 
-    // ─────────────────────────────────────
-    // 2️⃣ Build prompt WITH memory replay
-    // ─────────────────────────────────────
-    const history = convo.messages.map(m => ({
+    // ─────────────────────────────
+    // Build prompt with history
+    // ─────────────────────────────
+    const chatMessages = convo.messages.map(m => ({
       role: m.role,
       content: m.content
     }));
 
-    const chatMessages = [
-      { role: "system", content: profile },
-      ...history,
-      { role: "user", content: message }
-    ];
+    chatMessages.push({ role: "user", content: message });
 
-    // ─────────────────────────────────────
-    // 3️⃣ Call OpenAI
-    // ─────────────────────────────────────
+    // ─────────────────────────────
+    // Call OpenAI
+    // ─────────────────────────────
     const response = await client.responses.create({
       model: "gpt-4.1",
       input: chatMessages,
@@ -69,74 +59,40 @@ export async function POST(req) {
 
     const reply = response.output_text || "No response generated.";
 
-    // ─────────────────────────────────────
-    // 4️⃣ Token usage (safe extraction)
-    // ─────────────────────────────────────
     const usage = response.usage || {};
     const inputTokens = usage.input_tokens || 0;
     const outputTokens = usage.output_tokens || 0;
     const totalTokens = inputTokens + outputTokens;
 
-    // ─────────────────────────────────────
-    // 5️⃣ Persist messages
-    // ─────────────────────────────────────
+    // ─────────────────────────────
+    // Persist messages
+    // ─────────────────────────────
     convo.messages.push(
-      {
-        role: "user",
-        content: message,
-        tokens: {
-          input: inputTokens,
-          output: 0,
-          total: inputTokens
-        },
-        timestamp: now()
-      },
-      {
-        role: "assistant",
-        content: reply,
-        tokens: {
-          input: 0,
-          output: outputTokens,
-          total: outputTokens
-        },
-        timestamp: now()
-      }
+      { role: "user", content: message },
+      { role: "assistant", content: reply }
     );
-
-    // Auto-generate title from first user message
-if (!convo.title || convo.title === "New Conversation") {
-  const firstUserMessage = convo.messages.find(
-    m => m.role === "user"
-  );
-
-  if (firstUserMessage) {
-    convo.title = firstUserMessage.content.slice(0, 40);
-  }
-}
-
 
     convo.totals.input += inputTokens;
     convo.totals.output += outputTokens;
     convo.totals.total += totalTokens;
-    convo.updatedAt = now();
+    convo.updatedAt = new Date().toISOString();
 
     await kv.set(`conversation:${conversationId}`, convo);
 
-    // ─────────────────────────────────────
-    // 6️⃣ Respond to frontend
-    // ─────────────────────────────────────
+    // ─────────────────────────────
+    // RETURN FULL STATE (IMPORTANT)
+    // ─────────────────────────────
     return new Response(
       JSON.stringify({
-        reply,
-        tokens: convo.totals,
-        conversationId
+        conversationId,
+        messages: convo.messages,
+        tokens: convo.totals
       }),
       { headers: { "Content-Type": "application/json" } }
     );
 
   } catch (err) {
     console.error("CHAT ERROR:", err);
-
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500 }
